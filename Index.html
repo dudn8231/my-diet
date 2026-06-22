@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calorie Fit - 프리미엄 식단 정원</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- 폰트어썸 (아이콘) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+    </style>
+</head>
+<body class="bg-gray-100 flex justify-center items-center min-h-screen">
+
+<div id="app" class="w-full max-w-md bg-white min-h-[850px] shadow-2xl rounded-3xl overflow-hidden flex flex-col justify-between relative font-sans">
+    
+    <!-- 🌿 0. 싱그러운 프리미엄 정원 표지 화면 -->
+    <div v-if="step === 'intro'" class="flex-1 flex flex-col justify-between p-8 bg-gradient-to-br from-emerald-600 via-green-500 to-teal-600 text-white text-center">
+        <div class="flex-1 flex flex-col justify-center items-center mt-12">
+            <!-- 기분 좋아지는 정원&새싹 오브제 -->
+            <div class="relative w-28 h-28 bg-white/20 rounded-full flex justify-center items-center mb-6 shadow-lg border border-white/30 animate-pulse">
+                <i class="fa-solid fa-seedling text-5xl text-yellow-200"></i>
+                <i class="fa-solid fa-sun absolute top-3 right-3 text-lg text-amber-300 animate-spin" style="animation-duration: 15s;"></i>
+            </div>
+            <h1 class="text-4xl font-extrabold tracking-tight mb-2 flex items-center gap-2">
+                Calorie Fit
+            </h1>
+            <p class="text-sm opacity-90 font-medium tracking-wide">나만의 푸른 정원을 가꾸듯 시작하는 식단 다이어리</p>
+            <div class="w-16 h-1 bg-yellow-300 my-4 rounded-full"></div>
+        </div>
+        <div class="space-y-4 mb-6">
+            <p class="text-xs opacity-75">매일 가벼워지는 몸과 마음, 초록빛 힐링 라이프</p>
+            <button @click="goNextFromIntro" class="w-full bg-white text-emerald-700 p-4 rounded-2xl font-bold text-lg hover:bg-green-50 transition shadow-xl flex justify-center items-center gap-2">
+                내 식단 정원 입장하기 <i class="fa-solid fa-tree text-sm text-emerald-600"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 1. 온보딩 (초기 설정 화면) -->
+    <div v-if="step === 'onboarding'" class="p-6 flex-1 flex flex-col justify-between">
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">👋 반가워요! 프로필 설정</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">키 (cm)</label>
+                    <input type="number" v-model="user.height" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">현재 몸무게 (kg)</label>
+                        <input type="number" v-model="user.weight" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">목표 몸무게 (kg)</label>
+                        <input type="number" v-model="user.targetWeight" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">데이터 보관 정책</label>
+                    <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                        <p class="text-xs text-emerald-800 font-semibold">✨ 1주일 자동 최적화 적용</p>
+                        <p class="text-[11px] text-emerald-600 mt-1">상세 사진·기록은 1주일 후 자동 삭제되며, 체중 트렌드 수치만 보관됩니다.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button @click="startApp" class="w-full bg-emerald-500 text-white p-4 rounded-xl font-bold text-lg hover:bg-emerald-600 transition mt-6 shadow-md">
+            맞춤 목표 계산하고 시작하기
+        </button>
+    </div>
+
+    <!-- 2. 메인 홈 화면 -->
+    <div v-if="step === 'home'" class="flex-1 flex flex-col">
+        <!-- 상단 헤더 & 대사량 게이지 -->
+        <div class="bg-gradient-to-br from-emerald-500 via-green-600 to-teal-600 p-6 text-white rounded-b-[2rem] shadow-lg">
+            
+            <!-- 날짜 선택기 통합 상단 바 -->
+            <div class="flex justify-between items-center mb-4">
+                <div class="flex items-center bg-white/20 rounded-xl px-2 py-1 shadow-inner border border-white/10">
+                    <button @click="changeDate(-1)" class="p-1 hover:text-yellow-200 transition"><i class="fa-solid fa-chevron-left text-xs"></i></button>
+                    <input type="date" v-model="selectedDate" class="bg-transparent text-sm font-bold text-center outline-none mx-1 w-[115px] cursor-pointer text-white">
+                    <button @click="changeDate(1)" class="p-1 hover:text-yellow-200 transition"><i class="fa-solid fa-chevron-right text-xs"></i></button>
+                </div>
+                <span class="text-xs bg-white/20 px-3 py-1 rounded-full flex items-center gap-1 border border-white/10">
+                    <i class="fa-solid fa-leaf text-yellow-200 animate-pulse"></i> {{ isToday ? '정원 가꾸는 중' : '지나온 정원 보기' }}
+                </span>
+            </div>
+
+            <div class="text-center my-4">
+                <p class="text-xs opacity-80">{{ isToday ? '오늘 남은 권장 칼로리' : '해당 날짜 잔여 칼로리' }}</p>
+                <h1 class="text-4xl font-extrabold my-1">{{ user.targetCalorie - totalEat + totalBurn }} <span class="text-xl font-normal">kcal</span></h1>
+            </div>
+            <div class="grid grid-cols-3 text-center text-xs pt-3 border-t border-white/20 mt-4">
+                <div>
+                    <p class="opacity-70">목표 섭취</p>
+                    <p class="font-bold text-sm mt-0.5">{{ user.targetCalorie }}</p>
+                </div>
+                <div>
+                    <p class="opacity-70">식단+간식</p>
+                    <p class="font-bold text-sm text-yellow-200 mt-0.5">{{ totalEat }}</p>
+                </div>
+                <div>
+                    <p class="opacity-70">운동 소모</p>
+                    <p class="font-bold text-sm text-cyan-200 mt-0.5">{{ totalBurn }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 타임라인 기록 리스트 -->
+        <div class="p-5 flex-1 overflow-y-auto space-y-3 max-h-[440px]">
+            <div v-for="(meal, type) in meals" :key="type" class="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex flex-col gap-2">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg">{{ meal.icon }}</span>
+                        <span class="font-bold text-sm text-gray-700">{{ meal.title }}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold px-2 py-0.5 rounded-md bg-white border" v-if="meal.kcal > 0" :class="type === 'exercise' ? 'text-cyan-600' : 'text-emerald-600'">
+                            {{ type === 'exercise' ? '-' : '' }}{{ meal.kcal }} kcal
+                        </span>
+                        <button @click="openSearch(type)" class="w-6 h-6 rounded-full bg-white text-gray-500 shadow-sm border flex justify-center items-center hover:bg-gray-100">
+                            <i class="fa-solid fa-plus text-[10px]"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 등록된 세부 아이템 태그 -->
+                <div class="flex flex-wrap gap-1.5 pt-1" v-if="meal.items && meal.items.length > 0">
+                    <div v-for="(item, idx) in meal.items" :key="idx" @click="openEditModal(type, idx, item)"
+                         class="text-xs bg-white border border-gray-200 text-gray-600 px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 cursor-pointer hover:border-amber-400 hover:bg-amber-50 font-medium transition shadow-xs">
+                        <span>{{ item.displayName }} ({{ item.kcal }} kcal)</span>
+                        <i class="fa-solid fa-sliders text-[10px] text-amber-500"></i>
+                    </div>
+                </div>
+                <div v-else class="text-[11px] text-gray-400 italic pl-1">등록된 내역이 없습니다.</div>
+            </div>
+        </div>
+
+        <!-- 하단 초기화 리셋 스위치 -->
+        <div class="px-5 pb-2 flex justify-between items-center text-[10px] text-gray-400">
+            <button @click="goToToday" class="underline hover:text-emerald-500"><i class="fa-solid fa-calendar-check"></i> 오늘로 이동</button>
+            <button @click="resetAllData" class="hover:text-red-500 underline"><i class="fa-solid fa-arrow-rotate-left"></i> 데이터 전체 초기화</button>
+        </div>
+
+        <!-- 고정 하단 탭 바 -->
+        <div class="border-t bg-white p-4 flex justify-around items-center rounded-t-2xl shadow-inner">
+            <button class="text-emerald-500 flex flex-col items-center gap-1"><i class="fa-solid fa-house text-lg"></i><span class="text-[10px]">대시보드</span></button>
+            <button @click="triggerAiFeedback" class="text-gray-400 flex flex-col items-center gap-1 hover:text-emerald-500"><i class="fa-solid fa-robot text-lg text-purple-500 animate-bounce"></i><span class="text-[10px] font-bold text-purple-600">밤 9시 코칭</span></button>
+        </div>
+    </div>
+
+    <!-- 3. 검색 및 입력/보정 모달 화면 -->
+    <div v-if="step === 'search'" class="flex-1 flex flex-col bg-white">
+        <div class="p-4 border-b flex items-center justify-between bg-gray-50">
+            <button @click="step = 'home'" class="text-gray-600"><i class="fa-solid fa-arrow-left text-lg"></i></button>
+            <span class="font-bold text-gray-800">{{ meals[currentMealType].title }} 등록</span>
+            <div class="w-6"></div>
+        </div>
+
+        <!-- 상단 통합 검색창 -->
+        <div class="p-4 bg-gray-50 border-b">
+            <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-4 top-3 text-gray-400 text-xs"></i>
+                <input type="text" v-model="globalSearchQuery" @input="predictKcalAndCategory" placeholder="검색어를 입력해 주세요... (예: 사탕, 카레, 식빵)" 
+                       class="w-full pl-9 pr-4 py-2.5 bg-white border border-emerald-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs font-semibold">
+            </div>
+            <button v-if="currentMealType !== 'exercise'" @click="simulateCameraVision" class="w-full mt-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-2 rounded-xl text-[11px] font-bold flex justify-center items-center gap-2 shadow-sm">
+                <i class="fa-solid fa-camera"></i> 📸 음식 사진 촬영으로 자동 인식하기
+            </button>
+        </div>
+
+        <!-- 카테고리 탭 -->
+        <div v-if="currentMealType !== 'exercise'" class="flex border-b text-xs text-center font-semibold text-gray-400 bg-white">
+            <button v-for="cat in foodCategories" :key="cat" @click="changeCategory(cat)" 
+                    :class="['flex-1 py-3 border-b-2 transition', activeCategory === cat && !globalSearchQuery ? 'border-emerald-500 text-emerald-600 font-bold bg-emerald-50/40' : 'border-transparent']">
+                {{ cat }}
+            </button>
+        </div>
+
+        <!-- AI 카메라 비전 안내판 -->
+        <div v-if="aiVisionActive" class="mx-4 my-2 p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs">
+            <p class="text-blue-700">사진 속 음식을 <span class="font-bold text-blue-900 text-sm">"{{ selectedItem?.name }}"</span>으로 파악했습니다.</p>
+            <div class="flex gap-2 mt-2">
+                <button @click="aiVisionActive = false" class="flex-1 bg-white border border-blue-300 text-blue-700 py-1.5 rounded-lg font-medium">👍 맞아요</button>
+                <button @click="rejectAiVision" class="flex-1 bg-amber-500 text-white py-1.5 rounded-lg font-medium">❌ 직접 검색</button>
+            </div>
+        </div>
+
+        <!-- 결과 리스트 및 신규 등록 영역 -->
+        <div class="flex-1 overflow-y-auto px-4 py-2 space-y-2 bg-gray-50/50 max-h-[240px]">
+            <div v-if="showCustomRegistrationForm" class="p-4 bg-amber-50 border border-amber-200 rounded-xl text-center shadow-xs">
+                <p class="text-xs text-amber-900 font-bold mb-2">💡 완벽히 일치하는 '{{ globalSearchQuery }}' 항목이 없나요?</p>
+                <div class="space-y-2 max-w-xs mx-auto">
+                    <div class="flex items-center justify-center gap-2 bg-white p-2 rounded-xl border text-xs">
+                        <span class="text-gray-500 font-semibold">{{ currentMealType === 'exercise' ? '30분당 소모량:' : '1인분 기준 칼로리:' }}</span>
+                        <input type="number" v-model="newCustomKcal" class="w-16 text-center font-bold text-emerald-600 border-b outline-none">
+                        <span>kcal</span>
+                    </div>
+                    <div v-if="currentMealType !== 'exercise'" class="flex justify-center gap-1 text-[10px] font-bold">
+                        <button v-for="cat in ['한식','양식','일식','중식','간식']" :key="cat" @click="customItemCategory = cat"
+                                :class="['px-2 py-1 rounded border', customItemCategory === cat ? 'bg-amber-600 text-white' : 'bg-white text-gray-500']">{{cat}}</button>
+                    </div>
+                    <button @click="addNewCustomItem" class="w-full bg-amber-500 text-white py-2 rounded-xl text-xs font-bold shadow-md">✨ 고유 새 명칭으로 독립 등록</button>
+                </div>
+            </div>
+
+            <div v-for="item in filteredItems" :key="item.name" @click="selectItem(item)"
+                 :class="['p-3 border rounded-xl flex justify-between items-center cursor-pointer transition bg-white', selectedItem?.name === item.name ? 'border-emerald-500 bg-emerald-50/70 shadow-xs' : 'border-gray-100 hover:border-emerald-200']">
+                <div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[9px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded font-bold">{{ item.cat }}</span>
+                        <p class="font-bold text-sm text-gray-700">{{ item.name }}</p>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">{{ item.cat === '운동' ? '30분당' : '기준 단위당' }} · {{ Math.abs(item.kcal) }} kcal</p>
+                </div>
+                <span class="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2.5 py-1 rounded-md border">선택</span>
+            </div>
+        </div>
+
+        <!-- 세부 수량 보정 계산 패널 -->
+        <div v-if="selectedItem" class="p-4 border-t bg-white shadow-2xl rounded-t-3xl">
+            <div class="flex justify-between items-center mb-3">
+                <span class="font-bold text-sm text-emerald-800">🍽️ {{ selectedItem.name }} 선택됨</span>
+                <span :class="['text-sm font-bold', currentMealType === 'exercise' ? 'text-cyan-600' : 'text-emerald-600']">{{ calculatedKcal }} kcal</span>
+            </div>
+
+            <div v-if="currentMealType === 'exercise' || selectedItem.cat === '운동'" class="space-y-3">
+                <div class="flex gap-2">
+                    <button v-for="t in [15, 30, 50, 90]" :key="t" @click="exerciseTime = t" :class="['flex-1 py-2 text-xs rounded-lg font-bold border transition', exerciseTime === t ? 'bg-cyan-500 text-white' : 'bg-white']">{{ t }}분</button>
+                </div>
+                <div class="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border text-xs">
+                    <span>시간 직접 입력:</span>
+                    <input type="number" v-model="exerciseTime" class="w-16 text-center font-bold bg-white border rounded p-1 text-cyan-600"><span>분 소모</span>
+                </div>
+            </div>
+            
+            <div v-else class="space-y-3">
+                <div class="flex bg-gray-100 p-1 rounded-lg text-[11px] font-bold text-gray-600">
+                    <button @click="inputMode = 'serving'" :class="['flex-1 py-1 rounded transition', inputMode === 'serving' ? 'bg-white text-emerald-600 shadow-xs' : '']">인분 단위</button>
+                    <button @click="inputMode = 'qty'" :class="['flex-1 py-1 rounded transition', inputMode === 'qty' ? 'bg-white text-emerald-600 shadow-xs' : '']">개수 / 조각</button>
+                    <button @click="inputMode = 'gram'" :class="['flex-1 py-1 rounded transition', inputMode === 'gram' ? 'bg-white text-emerald-600 shadow-xs' : '']">직접 중량(g) 입력</button>
+                </div>
+
+                <div v-if="inputMode === 'serving'" class="flex gap-1.5">
+                    <button v-for="serv in [0.5, 1, 1.5, 2]" :key="serv" @click="foodServing = serv" :class="['flex-1 py-2 text-xs rounded-lg font-bold border transition', foodServing === serv ? 'bg-emerald-500 text-white' : 'bg-white']">{{ serv }}인분</button>
+                </div>
+                <div v-if="inputMode === 'qty'" class="flex items-center justify-between bg-gray-50 p-2 rounded-xl border text-xs">
+                    <span>개수 조절:</span>
+                    <div class="flex items-center gap-3">
+                        <button @click="foodQty = Math.max(1, foodQty - 1)" class="w-8 h-8 rounded bg-white font-bold border">-</button>
+                        <span class="font-bold text-gray-800">{{ foodQty }} 개</span>
+                        <button @click="foodQty++" class="w-8 h-8 rounded bg-white font-bold border">+</button>
+                    </div>
+                </div>
+                <div v-if="inputMode === 'gram'" class="flex items-center gap-2 bg-gray-50 p-2.5 rounded-xl border text-xs">
+                    <span>중량 입력:</span>
+                    <input type="number" v-model="foodGram" class="w-24 text-center font-bold bg-white border rounded p-1 text-emerald-600">
+                    <span>g (250g 기준 대비 비례 연산)</span>
+                </div>
+            </div>
+
+            <button @click="addItemToLog" :class="['w-full mt-4 p-3.5 rounded-xl font-bold text-sm text-white transition', currentMealType === 'exercise' ? 'bg-cyan-500' : 'bg-emerald-500']">오늘 다이어리에 반영</button>
+        </div>
+    </div>
+
+    <!-- 4. 정밀 보정 편집 마스터 모달 창 -->
+    <div v-if="showEditModal" class="absolute inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+        <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl p-6 text-left space-y-4 max-h-[750px] overflow-y-auto">
+            <div class="border-b pb-2">
+                <h3 class="text-md font-extrabold text-gray-800">⚙️ 등록 데이터 정밀 보정 편집</h3>
+                <p class="text-xs text-gray-400 mt-1">대상 항목: <span class="font-bold text-amber-600 text-sm">'{{ editingItem.baseName }}'</span></p>
+            </div>
+            
+            <div class="bg-gray-50 p-3 rounded-2xl border space-y-2">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold text-gray-600"><i class="fa-solid fa-scale-balanced"></i> 수량 재조절</span>
+                    <span class="text-xs font-bold text-emerald-600 bg-white border px-2 py-0.5 rounded">{{ editCalculatedKcal }} kcal</span>
+                </div>
+                <div v-if="editingItem.originType === 'exercise'" class="flex items-center gap-2 text-xs pt-1">
+                    <span>수행시간 수정:</span>
+                    <input type="number" v-model="editValues.exerciseTime" class="w-16 text-center font-bold bg-white border rounded p-1 text-cyan-600"><span>분</span>
+                </div>
+                <div v-else class="space-y-2 pt-1 text-xs">
+                    <div class="flex bg-gray-200 p-0.5 rounded text-[10px] font-bold text-gray-500">
+                        <button @click="editValues.mode = 'serving'" :class="['flex-1 py-1 rounded', editValues.mode === 'serving' ? 'bg-white text-emerald-600' : '']">인분</button>
+                        <button @click="editValues.mode = 'qty'" :class="['flex-1 py-1 rounded', editValues.mode === 'qty' ? 'bg-white text-emerald-600' : '']">개수</button>
+                        <button @click="editValues.mode = 'gram'" :class="['flex-1 py-1 rounded', editValues.mode === 'gram' ? 'bg-white text-emerald-600' : '']">그램(g)</button>
+                    </div>
+                    <div v-if="editValues.mode === 'serving'" class="flex items-center gap-2">
+                        <span>인분 지정:</span><input type="number" step="0.1" v-model="editValues.foodServing" class="w-16 text-center font-bold bg-white border rounded p-1"><span>인분</span>
+                    </div>
+                    <div v-if="editValues.mode === 'qty'" class="flex items-center gap-2">
+                        <span>개수 지정:</span><input type="number" v-model="editValues.foodQty" class="w-16 text-center font-bold bg-white border rounded p-1"><span>개</span>
+                    </div>
+                    <div v-if="editValues.mode === 'gram'" class="flex items-center gap-2">
+                        <span>중량 수정:</span><input type="number" v-model="editValues.foodGram" class="w-20 text-center font-bold bg-white border rounded p-1 text-emerald-600"><span>g</span>
+                    </div>
+                </div>
+                <button @click="applyKcalQuantityUpdate" class="w-full bg-emerald-500 text-white p-2 rounded-xl font-bold text-xs hover:bg-emerald-600">💾 변경사항 다이어리에 갱신</button>
+            </div>
+
+            <div v-if="editingItem.originType !== 'exercise'" class="bg-gray-50 p-3 rounded-2xl border space-y-2">
+                <span class="block text-xs font-bold text-gray-600"><i class="fa-solid fa-shuffle"></i> 식사 시간대 위치 이동</span>
+                <div class="grid grid-cols-2 gap-1.5 text-center text-[11px] font-bold">
+                    <button v-for="(target, key) in {breakfast:'아침', lunch:'점심', dinner:'저녁', snack:'간식'}" :key="key" @click="moveTargetType = key"
+                            :class="['py-1.5 rounded-lg border transition', moveTargetType === key ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-gray-600']">{{ target }}</button>
+                </div>
+                <button @click="applyMoveItem" class="w-full bg-slate-600 text-white p-2 rounded-xl font-bold text-xs hover:bg-slate-700">🔄 시간대 위치 변경 적용</button>
+            </div>
+
+            <div class="pt-1">
+                <button @click="deleteItem" class="w-full bg-red-500 text-white p-2.5 rounded-xl font-bold text-xs hover:bg-red-600">🗑️ 다이어리에서 기록 삭제</button>
+            </div>
+            <button @click="showEditModal = false" class="w-full bg-gray-200 text-gray-700 py-2 rounded-xl font-bold text-xs">취소하고 창 닫기</button>
+        </div>
+    </div>
+
+    <!-- 5. AI 코칭 팝업 모달 -->
+    <div v-if="showAiModal" class="absolute inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+        <div class="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl p-6 relative flex flex-col">
+            <div class="text-center mb-4">
+                <div class="w-14 h-14 bg-purple-100 rounded-full flex justify-center items-center mx-auto mb-2 text-2xl text-purple-600">🤖</div>
+                <h3 class="text-lg font-extrabold text-gray-800">{{ selectedDate }} AI 건강 리포트</h3>
+            </div>
+            <div class="bg-purple-50 rounded-2xl p-4 text-xs text-purple-950 leading-relaxed max-h-[260px] overflow-y-auto space-y-2">
+                <p>선택하신 {{ selectedDate }}의 식단 섭취 칼로리는 총 {{ totalEat }} kcal이며, 운동 소모량은 {{ totalBurn }} kcal입니다.</p>
+                <p class="border-t border-purple-200/60 pt-2 font-semibold text-emerald-700">🧹 주간 최적화 가동 알림:</p>
+                <p class="text-[11px] text-purple-700/80">데이터 보관 정책에 의거하여 상세 기록은 1주일 후 압축 정리됩니다.</p>
+            </div>
+            <button @click="showAiModal = false" class="w-full mt-5 bg-purple-600 text-white p-3.5 rounded-xl font-bold text-sm">확인했습니다</button>
+        </div>
+    </div>
+
+</div>
+
+<!-- 🌟 클로드 최적화 안심 락(Lock) 스크립트 결합 구조 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.prod.min.js"></script>
+<script>
+function initCalorieGarden() {
+    // Vue 객체가 메모리에 준비되지 않은 경우, 50ms 후 리트라이하여 클로드 지연 차단 완벽 극복
+    if (typeof Vue === 'undefined') {
+        setTimeout(initCalorieGarden, 50);
+        return;
+    }
+
+    const { createApp, ref, computed, watch } = Vue;
+
+    createApp({
+        setup() {
+            const step = ref('intro');
+            const showAiModal = ref(false);
+            const showEditModal = ref(false); 
+            const globalSearchQuery = ref(''); 
+            const activeCategory = ref('한식');
+            const currentMealType = ref('breakfast');
+            const selectedItem = ref(null);
+            
+            const inputMode = ref('serving'); 
+            const foodServing = ref(1);
+            const foodQty = ref(1);
+            const foodGram = ref(250); 
+            const exerciseTime = ref(30);
+            
+            const aiVisionActive = ref(false);
+            const newCustomKcal = ref(150); 
+            const customItemCategory = ref('한식'); 
+
+            const editingItem = ref({ originType: '', idx: -1, baseName: '', baseKcal: 0 });
+            const editValues = ref({ mode: 'serving', foodServing: 1, foodQty: 1, foodGram: 250, exerciseTime: 30 });
+            const moveTargetType = ref('breakfast');
+
+            const user = ref({ height: 165, weight: 60, targetWeight: 55, targetCalorie: 1500 });
+            const foodCategories = ['한식', '양식', '일식', '중식', '간식'];
+
+            const getTodayString = () => {
+                const d = new Date();
+                const offset = d.getTimezoneOffset() * 60000;
+                const today = new Date(d.getTime() - offset);
+                return today.toISOString().split('T')[0];
+            };
+            const selectedDate = ref(getTodayString());
+
+            const defaultDatabase = [
+                { cat: '한식', name: '백미밥(공기밥)', kcal: 300 },
+                { cat: '한식', name: '김치찌개', kcal: 250 },
+                { cat: '한식', name: '된장찌개', kcal: 180 },
+                { cat: '한식', name: '김치볶음밥', kcal: 510 },
+                { cat: '한식', name: '야채볶음밥', kcal: 470 },
+                { cat: '한식', name: '토마토계란볶음', kcal: 210 },
+                { cat: '한식', name: '두부부침(1조각)', kcal: 65 },
+                { cat: '간식', name: '사탕', kcal: 20 },
+                { cat: '간식', name: '핫브레이크 미니', kcal: 80 },
+                { cat: '간식', name: '식빵 한 조각', kcal: 100 },
+                { cat: '운동', name: '🚶 가벼운 걷기', kcal: -150 },
+                { cat: '운동', name: '🏃 실외 달리기', kcal: -300 }
+            ];
+
+            const masterDatabase = ref([]);
+            
+            const createEmptyMeals = () => ({
+                breakfast: { title: '아침 식단', icon: '☀️', items: [], kcal: 0 },
+                lunch: { title: '점심 식단', icon: '🌤️', items: [], kcal: 0 },
+                dinner: { title: '저녁 식단', icon: '🌙', items: [], kcal: 0 },
+                snack: { title: '간식 기록', icon: '🍪', items: [], kcal: 0 },
+                exercise: { title: '운동 기록', icon: '🏃', items: [], kcal: 0 }
+            });
+
+            const meals = ref(createEmptyMeals());
+
+            const goNextFromIntro = () => {
+                const savedUser = localStorage.getItem('cf_user');
+                if (savedUser) {
+                    step.value = 'home';
+                } else {
+                    step.value = 'onboarding';
+                }
+            };
+
+            const loadSavedData = () => {
+                const savedUser = localStorage.getItem('cf_user');
+                const savedDb = localStorage.getItem('cf_db');
+                const savedStep = localStorage.getItem('cf_step');
+
+                if (savedUser) user.value = JSON.parse(savedUser);
+                if (savedStep && savedStep !== 'intro') step.value = savedStep;
+                
+                if (savedDb) {
+                    masterDatabase.value = JSON.parse(savedDb);
+                } else {
+                    masterDatabase.value = defaultDatabase;
+                }
+
+                loadMealsByDate(selectedDate.value);
+            };
+
+            const loadMealsByDate = (dateStr) => {
+                const savedMeals = localStorage.getItem(`cf_meals_${dateStr}`);
+                if (savedMeals) {
+                    meals.value = JSON.parse(savedMeals);
+                } else {
+                    meals.value = createEmptyMeals();
+                }
+            };
+
+            const changeDate = (days) => {
+                const current = new Date(selectedDate.value);
+                current.setDate(current.getDate() + days);
+                const offset = current.getTimezoneOffset() * 60000;
+                const netDate = new Date(current.getTime() - offset);
+                selectedDate.value = netDate.toISOString().split('T')[0];
+            };
+
+            const goToToday = () => {
+                selectedDate.value = getTodayString();
+            };
+
+            const isToday = computed(() => selectedDate.value === getTodayString());
+
+            watch(user, (newVal) => { localStorage.setItem('cf_user', JSON.stringify(newVal)); }, { deep: true });
+            watch(masterDatabase, (newVal) => { localStorage.setItem('cf_db', JSON.stringify(newVal)); }, { deep: true });
+            watch(step, (newVal) => { if(newVal !== 'intro') localStorage.setItem('cf_step', newVal); });
+            
+            watch(selectedDate, (newDate) => {
+                loadMealsByDate(newDate);
+            });
+
+            watch(meals, (newMeals) => {
+                localStorage.setItem(`cf_meals_${selectedDate.value}`, JSON.stringify(newMeals));
+            }, { deep: true });
+
+            const resetAllData = () => {
+                if(confirm("정말 모든 식단 내역과 설정 데이터를 초기화하고 처음부터 다시 시작하시겠습니까?")) {
+                    localStorage.clear();
+                    location.reload();
+                }
+            };
+
+            const startApp = () => {
+                user.value.targetCalorie = Math.round((user.value.weight * 24) * 0.9);
+                step.value = 'home';
+            };
+
+            const openSearch = (type) => {
+                currentMealType.value = type; globalSearchQuery.value = ''; selectedItem.value = null;
+                foodServing.value = 1; foodQty.value = 1; foodGram.value = 250; exerciseTime.value = 30; inputMode.value = 'serving';
+
+                if(type === 'exercise') { activeCategory.value = '운동'; customItemCategory.value = '운동'; newCustomKcal.value = 180; }
+                else if(type === 'snack') { activeCategory.value = '간식'; customItemCategory.value = '간식'; newCustomKcal.value = 50; }
+                else { activeCategory.value = '한식'; customItemCategory.value = '한식'; newCustomKcal.value = 350; }
+                step.value = 'search';
+            };
+
+            const changeCategory = (cat) => { activeCategory.value = cat; selectedItem.value = null; globalSearchQuery.value = ''; };
+
+            const predictKcalAndCategory = () => {
+                const query = globalSearchQuery.value.trim().toLowerCase();
+                if(!query || currentMealType.value === 'exercise') return;
+                if (query.includes('사탕') || query.includes('캔디')) { customItemCategory.value = '간식'; newCustomKcal.value = 20; } 
+                else if (query.includes('핫브레이크') || query.includes('초코') || query.includes('미니')) { customItemCategory.value = '간식'; newCustomKcal.value = 80; } 
+                else if (query.includes('찌개') || query.includes('국')) { customItemCategory.value = '한식'; newCustomKcal.value = 220; } 
+                else { customItemCategory.value = currentMealType.value === 'snack' ? '간식' : '한식'; newCustomKcal.value = currentMealType.value === 'snack' ? 90 : 300; }
+            };
+
+            const filteredItems = computed(() => {
+                if (currentMealType.value === 'exercise') return masterDatabase.value.filter(item => item.cat === '운동' && item.name.includes(globalSearchQuery.value));
+                if (globalSearchQuery.value.trim() !== '') return masterDatabase.value.filter(item => item.cat !== '운동' && item.name.toLowerCase().includes(globalSearchQuery.value.toLowerCase()));
+                return masterDatabase.value.filter(item => item.cat === activeCategory.value);
+            });
+
+            const showCustomRegistrationForm = computed(() => {
+                const query = globalSearchQuery.value.trim();
+                if (!query) return false;
+                return !masterDatabase.value.some(item => item.name.toLowerCase() === query.toLowerCase());
+            });
+
+            const selectItem = (item) => { selectedItem.value = item; };
+
+            const calculatedKcal = computed(() => {
+                if (!selectedItem.value) return 0;
+                const baseKcal = Math.abs(selectedItem.value.kcal);
+                if (currentMealType.value === 'exercise' || selectedItem.value.cat === '운동') return Math.round(baseKcal * (exerciseTime.value / 30));
+                
+                if (inputMode.value === 'serving') return Math.round(baseKcal * foodServing.value);
+                if (inputMode.value === 'qty') return Math.round(baseKcal * foodQty.value);
+                if (inputMode.value === 'gram') return Math.round((baseKcal / 250) * foodGram.value);
+                return 0;
+            });
+
+            const addNewCustomItem = () => {
+                const name = globalSearchQuery.value.trim(); if (!name) return;
+                let category = customItemCategory.value; let kCalValue = Number(newCustomKcal.value) || 0;
+                if (currentMealType.value === 'exercise') { category = '운동'; kCalValue = -Math.abs(kCalValue); }
+
+                const newItem = { cat: category, name: name, kcal: kCalValue };
+                masterDatabase.value.push(newItem); selectedItem.value = newItem; 
+                alert(`✨ '${name}' 항목이 시스템 카탈로그에 연동되었습니다.`);
+            };
+
+            const addItemToLog = () => {
+                if (!selectedItem.value) return;
+                const current = meals.value[currentMealType.value];
+                let logText = "";
+                
+                if (currentMealType.value === 'exercise' || selectedItem.value.cat === '운동') logText = `${selectedItem.value.name}(${exerciseTime.value}분)`;
+                else {
+                    if (inputMode.value === 'serving') logText = `${selectedItem.value.name}(${foodServing.value}인분)`;
+                    else if (inputMode.value === 'qty') logText = `${selectedItem.value.name}(${foodQty.value}개)`;
+                    else if (inputMode.value === 'gram') logText = `${selectedItem.value.name}(${foodGram.value}g)`;
+                }
+
+                current.items.push({ 
+                    displayName: logText, 
+                    kcal: calculatedKcal.value,
+                    baseName: selectedItem.value.name,
+                    baseKcal: Math.abs(selectedItem.value.kcal),
+                    savedMode: inputMode.value,
+                    savedServing: foodServing.value,
+                    savedQty: foodQty.value,
+                    savedGram: foodGram.value,
+                    savedExerciseTime: exerciseTime.value
+                });
+                current.kcal += calculatedKcal.value;
+                step.value = 'home'; selectedItem.value = null; globalSearchQuery.value = '';
+            };
+
+            const openEditModal = (type, idx, item) => {
+                editingItem.value = { originType: type, idx: idx, baseName: item.baseName, baseKcal: item.baseKcal, kcal: item.kcal };
+                editValues.value.mode = item.savedMode || 'serving';
+                editValues.value.foodServing = item.savedServing || 1;
+                editValues.value.foodQty = item.savedQty || 1;
+                editValues.value.foodGram = item.savedGram || 250;
+                editValues.value.exerciseTime = item.savedExerciseTime || 30;
+                moveTargetType.value = type;
+                showEditModal.value = true;
+            };
+
+            const editCalculatedKcal = computed(() => {
+                const base = editingItem.value.baseKcal;
+                if (!base) return 0;
+                if (editingItem.value.originType === 'exercise') return Math.round(base * (editValues.value.exerciseTime / 30));
+                if (editValues.value.mode === 'serving') return Math.round(base * editValues.value.foodServing);
+                if (editValues.value.mode === 'qty') return Math.round(base * editValues.value.foodQty);
+                if (editValues.value.mode === 'gram') return Math.round((base / 250) * editValues.value.foodGram);
+                return 0;
+            });
+
+            const applyKcalQuantityUpdate = () => {
+                const targetMeal = meals.value[editingItem.value.originType];
+                const item = targetMeal.items[editingItem.value.idx];
+
+                targetMeal.kcal -= item.kcal;
+                item.kcal = editCalculatedKcal.value;
+                targetMeal.kcal += item.kcal;
+
+                if (editingItem.value.originType === 'exercise') {
+                    item.displayName = `${editingItem.value.baseName}(${editValues.value.exerciseTime}분)`;
+                } else {
+                    if (editValues.value.mode === 'serving') item.displayName = `${editingItem.value.baseName}(${editValues.value.foodServing}인분)─수정됨`;
+                    else if (editValues.value.mode === 'qty') item.displayName = `${editingItem.value.baseName}(${editValues.value.foodQty}개)─수정됨`;
+                    else if (editValues.value.mode === 'gram') item.displayName = `${editingItem.value.baseName}(${editValues.value.foodGram}g)─수정됨`;
+                }
+
+                item.savedMode = editValues.value.mode;
+                item.savedServing = editValues.value.foodServing;
+                item.savedQty = editValues.value.foodQty;
+                item.savedGram = editValues.value.foodGram;
+                item.savedExerciseTime = editValues.value.exerciseTime;
+
+                showEditModal.value = false;
+                alert(`⚙️ 수정 수치가 성공적으로 다이어리에 동기화되었습니다.`);
+            };
+
+            const deleteItem = () => {
+                const targetMeal = meals.value[editingItem.value.originType];
+                targetMeal.kcal -= editingItem.value.kcal; targetMeal.items.splice(editingItem.value.idx, 1);
+                showEditModal.value = false; alert("🗑️ 기록이 파기되었습니다.");
+            };
+
+            const applyMoveItem = () => {
+                if (moveTargetType.value === editingItem.value.originType) return;
+                const oldMeal = meals.value[editingItem.value.originType];
+                oldMeal.kcal -= editingItem.value.kcal;
+                const extractedItem = oldMeal.items.splice(editingItem.value.idx, 1)[0];
+
+                const newMeal = meals.value[moveTargetType.value];
+                newMeal.items.push(extractedItem); newMeal.kcal += editingItem.value.kcal;
+                showEditModal.value = false; alert(`🔄 [${newMeal.title}] 시간대로 데이터가 재배치되었습니다.`);
+            };
+
+            const simulateCameraVision = () => { aiVisionActive.value = true; selectedItem.value = masterDatabase.value.find(f => f.name === '토마토계란볶음'); };
+            const rejectAiVision = () => { aiVisionActive.value = false; selectedItem.value = null; globalSearchQuery.value = ""; };
+            const triggerAiFeedback = () => { showAiModal.value = true; };
+
+            const totalEat = computed(() => {
+                let sum = 0;
+                if(!meals.value) return 0;
+                for (const key in meals.value) { if(key !== 'exercise') sum += meals.value[key].kcal; }
+                return sum;
+            });
+            const totalBurn = computed(() => { return meals.value?.exercise?.kcal || 0; });
+
+            loadSavedData();
+
+            return {
+                step, user, meals, startApp, openSearch, foodCategories, activeCategory, changeCategory,
+                globalSearchQuery, filteredItems, selectItem, selectedItem, foodServing, foodQty, foodGram, exerciseTime,
+                inputMode, calculatedKcal, addItemToLog, simulateCameraVision, aiVisionActive, rejectAiVision,
+                triggerAiFeedback, showAiModal, totalEat, totalBurn, currentMealType, newCustomKcal, addNewCustomItem, 
+                showCustomRegistrationForm, customItemCategory, predictKcalAndCategory,
+                openEditModal, showEditModal, editingItem, editValues, moveTargetType, deleteItem, applyMoveItem, editCalculatedKcal, applyKcalQuantityUpdate, resetAllData,
+                selectedDate, changeDate, goToToday, isToday, goNextFromIntro
+            }
+        }
+    }).mount('#app');
+}
+
+window.addEventListener('DOMContentLoaded', initCalorieGarden);
+</script>
+</body>
+</html>
